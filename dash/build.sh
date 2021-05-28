@@ -1,13 +1,15 @@
 #!/bin/bash
 
-VERSION=v0.0.4
+VERSION=v0.0.10
 APP_NAME="Project Morey"
 ENV_NAME="Projectmorey-env"
 PROFILE=morey
 S3_BUCKET="projectmorey"
 ZIP_NAME=dash.zip
 
-zip $ZIP_NAME application.py requirements.txt *.csv
+black .
+
+zip $ZIP_NAME *.py requirements.txt *.csv
 
 aws s3 cp --profile morey $ZIP_NAME s3://$S3_BUCKET/
 
