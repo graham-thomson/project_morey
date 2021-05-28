@@ -21,18 +21,34 @@ df.dropna(subset=["height_inches", "weight_lbs"], inplace=True)
 df = apply_metric_functions(df)
 POSITIONS = df["position"].drop_duplicates().to_list()
 YEARS = df["year"].drop_duplicates().to_list()
-METRICS = [
+BASE_METRICS = [
     "z_score",
     "total_points",
     "average_points",
     "salary",
     "height_inches",
     "weight_lbs",
-] + list(metrics_dict.keys())
+]
+SYNTHETIC_METRICS = list(metrics_dict.keys())
+METRICS = BASE_METRICS + SYNTHETIC_METRICS
 
 app.layout = html.Div(
     children=[
         html.H1(children=TITLE),
+        html.P(children="Positions:"),
+        dcc.Checklist(
+            id="position-checklist",
+            options=[{"label": i, "value": i} for i in POSITIONS],
+            value=POSITIONS,
+            labelStyle={"display": "inline-block"},
+        ),
+        html.P(children="Year:"),
+        dcc.RadioItems(
+            id="year-picker",
+            options=[{"label": i, "value": i} for i in YEARS],
+            value=2020,
+            labelStyle={"display": "inline-block"},
+        ),
         dcc.Graph(id="zscore_box"),
         html.Div(
             [
@@ -54,22 +70,15 @@ app.layout = html.Div(
                     ],
                     value="z_score",
                 ),
-                html.P(children="Positions:"),
-                dcc.Checklist(
-                    id="position-checklist",
-                    options=[{"label": i, "value": i} for i in POSITIONS],
-                    value=POSITIONS,
-                    labelStyle={"display": "inline-block"},
-                ),
-                html.P(children="Year:"),
-                dcc.RadioItems(
-                    id="year-picker",
-                    options=[{"label": i, "value": i} for i in YEARS],
-                    value=2020,
-                    labelStyle={"display": "inline-block"},
-                ),
             ],
             style={"width": "50%", "display": "inline-block"},
+        ),
+        dcc.Graph(id="scatter-matrix"),
+        dcc.Dropdown(
+            id="matrix-select",
+            options=[{"label": i, "value": i} for i in BASE_METRICS],
+            value=BASE_METRICS,
+            multi=True,
         ),
     ]
 )
@@ -127,7 +136,7 @@ def update_graph(metric1, metric2, position_value, year_value):
     fig.update_yaxes(title_text=metric1.replace("_", " ").title(), row=1, col=1)
     fig.update_yaxes(title_text=metric2.replace("_", " ").title(), row=2, col=1)
 
-    n_boxes = len(POSITIONS)
+    n_boxes = len(box1.data)
 
     for i in range(n_boxes):
         b = box1.data[i]
@@ -144,6 +153,32 @@ def update_graph(metric1, metric2, position_value, year_value):
         height=700,
     )
 
+    return fig
+
+
+@app.callback(
+    Output("scatter-matrix", "figure"),
+    Input("matrix-select", "value"),
+    Input("position-checklist", "value"),
+    Input("year-picker", "value"),
+)
+def update_scatter_matrix(matrix_select, position_value, year_value):
+    dff = df[(df["year"] == year_value) & (df["position"].isin(position_value))]
+
+    fig = px.scatter_matrix(
+        dff,
+        dimensions=[m for m in BASE_METRICS if m in matrix_select],
+        color="position",
+        hover_data=["player_name"],
+        labels={
+            m: m.replace("_", " ").title() for m in BASE_METRICS if m in matrix_select
+        },
+    )
+
+    fig.update_layout(
+        title_text="Scatter Matrix",
+        height=700,
+    )
     return fig
 
 

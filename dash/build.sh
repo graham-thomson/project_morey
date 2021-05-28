@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=v0.0.10
+VERSION=v0.0.11
 APP_NAME="Project Morey"
 ENV_NAME="Projectmorey-env"
 PROFILE=morey
