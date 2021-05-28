@@ -1,6 +1,8 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
+from dash.dependencies import Input, Output
+from plotly.subplots import make_subplots
 import pandas as pd
 import plotly.express as px
 
@@ -11,13 +13,47 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 application = app.server
 app.title = TITLE
 
+df = pd.read_csv("./2019_2020_top_players.csv")
+POSITIONS = df["position"].drop_duplicates().to_list()
+YEARS = df["year"].drop_duplicates().to_list()
 
-def serve_layout():
+app.layout = html.Div(
+    children=[
+        html.H1(children=TITLE),
+        dcc.Graph(id="zscore_box"),
+        html.Div(
+            [
+                html.P(children="Positions:"),
+                dcc.Checklist(
+                    id="position-checklist",
+                    options=[{"label": i, "value": i} for i in POSITIONS],
+                    value=POSITIONS,
+                    labelStyle={"display": "inline-block"},
+                ),
+                html.P(children="Year:"),
+                dcc.RadioItems(
+                    id="year-picker",
+                    options=[{"label": i, "value": i} for i in YEARS],
+                    value=2020,
+                    labelStyle={"display": "inline-block"},
+                ),
+            ],
+            style={"width": "90%", "display": "inline-block"},
+        ),
+    ]
+)
 
-    df = pd.read_csv("./2020_top_players.csv")
+
+@app.callback(
+    Output("zscore_box", "figure"),
+    Input("position-checklist", "value"),
+    Input("year-picker", "value"),
+)
+def update_graph(position_value, year_value):
+    dff = df[(df["year"] == year_value) & (df["position"].isin(position_value))]
 
     zscore_box = px.box(
-        df,
+        dff,
         x="position",
         y="z_score",
         color="position",
@@ -29,10 +65,11 @@ def serve_layout():
             "age",
             "experience_years",
         ],
+        labels={"z_score": "Total Points Z-Score"},
     )
 
     total_points_box = px.box(
-        df,
+        dff,
         x="position",
         y="total_points",
         color="position",
@@ -45,22 +82,38 @@ def serve_layout():
             "age",
             "experience_years",
         ],
+        labels={"total_points": "Total Points"},
     )
 
-    return html.Div(
-        children=[
-            html.H1(children=TITLE),
-            html.H4(
-                children=f"2020 Top Players Total Points and Total Points Z-Score (scaled within position)."
-            ),
-            dcc.Graph(id="total_points_box", figure=total_points_box),
-            dcc.Graph(id="zscore_box", figure=zscore_box),
-        ]
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=False)
+
+    # update xaxis properties
+    fig.update_xaxes(title_text="Position", row=2, col=1)
+
+    # update yaxis properties
+    fig.update_yaxes(title_text="Total Points", row=1, col=1)
+    fig.update_yaxes(title_text="Z-Score", row=2, col=1)
+
+    n_boxes = len(zscore_box.data)
+
+    for i in range(n_boxes):
+        b = total_points_box.data[i]
+        b.showlegend = False
+        fig.add_trace(b, row=1, col=1)
+
+    for i in range(n_boxes):
+        b = zscore_box.data[i]
+        b.showlegend = False
+        fig.add_trace(b, row=2, col=1)
+
+    fig.update_layout(
+        title_text=f"{year_value} Top Players Total Points and Total Points Z-Score (scaled within position).",
+        height=700,
     )
 
+    return fig
 
-app.layout = serve_layout
 
-########### Run the app
+# run app
 if __name__ == "__main__":
     application.run(debug=True, port=8080)

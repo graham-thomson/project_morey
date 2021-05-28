@@ -1,8 +1,16 @@
+#!/bin/bash
 
-zip dash.zip application.py requirements.txt *.csv
+VERSION=v0.0.4
+APP_NAME="Project Morey"
+ENV_NAME="Projectmorey-env"
+PROFILE=morey
+S3_BUCKET="projectmorey"
+ZIP_NAME=dash.zip
 
-aws s3 cp --profile morey dash.zip s3://projectmorey/
+zip $ZIP_NAME application.py requirements.txt *.csv
 
-aws elasticbeanstalk create-application-version --profile morey --application-name tests3deploy --version-label v0.0.3 --source-bundle S3Bucket="projectmorey",S3Key="dash.zip"
+aws s3 cp --profile morey $ZIP_NAME s3://$S3_BUCKET/
 
-aws elasticbeanstalk update-environment --profile morey --application-name tests3deploy --environment-name tests3deploy --version-label v0.0.3
+aws elasticbeanstalk create-application-version --profile $PROFILE --application-name "${APP_NAME}" --version-label $VERSION --source-bundle S3Bucket=$S3_BUCKET,S3Key="${ZIP_NAME}"
+
+aws elasticbeanstalk update-environment --profile $PROFILE --application-name "${APP_NAME}" --environment-name $ENV_NAME --version-label $VERSION
